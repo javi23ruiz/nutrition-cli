@@ -5,7 +5,7 @@ import re
 
 import click
 
-from . import config, format, search
+from . import config, format, log as log_module, search
 from .rda import MET_TABLE, get_rda
 from .usda import RateLimitError
 
@@ -26,15 +26,21 @@ def config_cmd():
 @config_cmd.command("set")
 @click.option("--usda-key", default=None, help="Personal USDA FoodData Central API key.")
 @click.option("--default-grams", default=None, type=float, help="Default serving size in grams.")
-def config_set(usda_key, default_grams):
+@click.option("--kcal", default=None, type=int, help="Daily calorie target.")
+@click.option("--protein", default=None, type=int, help="Daily protein goal in grams.")
+@click.option("--timezone", default=None, help="Timezone string (e.g. UTC, America/New_York).")
+@click.option("--start-date", default=None, help="Tracking start date (YYYY-MM-DD).")
+def config_set(usda_key, default_grams, kcal, protein, timezone, start_date):
     """Save configuration values."""
-    if usda_key is None and default_grams is None:
-        # Show current config status
+    if not any([usda_key, default_grams, kcal, protein, timezone, start_date]):
         data = config.load_config()
         has_key = "usda_key" in data
-        grams = data.get("default_grams", 100)
         click.echo(f"  USDA key : {'configured' if has_key else 'not set (using DEMO_KEY)'}")
-        click.echo(f"  Default g: {grams}")
+        click.echo(f"  Default g: {data.get('default_grams', 100)}")
+        if "kcal" in data:
+            click.echo(f"  Calories : {data['kcal']} kcal/day")
+        if "protein" in data:
+            click.echo(f"  Protein  : {data['protein']}g/day")
         return
 
     if usda_key is not None:
@@ -43,6 +49,47 @@ def config_set(usda_key, default_grams):
     if default_grams is not None:
         config.set("default_grams", default_grams)
         click.echo(f"  Default serving size set to {default_grams}g.")
+    if kcal is not None:
+        config.set("kcal", kcal)
+        click.echo(f"  Daily calorie target set to {kcal} kcal.")
+    if protein is not None:
+        config.set("protein", protein)
+        click.echo(f"  Daily protein goal set to {protein}g.")
+    if timezone is not None:
+        config.set("timezone", timezone)
+        click.echo(f"  Timezone set to {timezone}.")
+    if start_date is not None:
+        config.set("start_date", start_date)
+        click.echo(f"  Tracking start date set to {start_date}.")
+
+
+@config_cmd.command("status")
+def config_status():
+    """Return 'Configured' if a nutrition profile exists, else 'Not configured'."""
+    data = config.load_config()
+    if "kcal" in data:
+        click.echo("Configured")
+    else:
+        click.echo("Not configured")
+
+
+@config_cmd.command("show")
+def config_show():
+    """Show full current nutrition profile."""
+    data = config.load_config()
+    if "kcal" not in data:
+        click.echo("  No nutrition profile set up.")
+        click.echo("  Run: nutrition config set --kcal 2000 --protein 150")
+        return
+
+    click.echo("  Nutrition profile")
+    click.echo("  " + "\u2500" * 35)
+    click.echo(f"  Daily calories : {data.get('kcal')} kcal")
+    click.echo(f"  Protein goal   : {data.get('protein', '\u2014')}g/day")
+    click.echo(f"  Default grams  : {data.get('default_grams', 100)}g")
+    click.echo(f"  Timezone       : {data.get('timezone', '\u2014')}")
+    click.echo(f"  Tracking since : {data.get('start_date', '\u2014')}")
+    click.echo(f"  USDA key       : {'configured' if data.get('usda_key') else 'using DEMO_KEY'}")
 
 
 # --- search ---
@@ -270,6 +317,127 @@ def daily(sex, age, weight, height, activity):
     click.echo(f"  Fat      : {fat_g}g")
     click.echo(f"  Carbs    : {carbs_g}g")
     click.echo(f"  Fiber    : {fiber_g}g")
+
+
+# --- log ---
+
+
+@cli.command("log")
+@click.argument("food", required=False, default=None)
+@click.option("--grams", "-g", default=None, type=float, help="Serving size in grams.")
+@click.option("--check-today", is_flag=True, help="Print number of meals logged today.")
+@click.option("--update-streak", "do_update_streak", is_flag=True, help="Update and print streak counter.")
+@click.option("--check-yesterday", is_flag=True, help="Print 'true' if meals were logged yesterday.")
+def log_cmd(food, grams, check_today, do_update_streak, check_yesterday):
+    """Log a meal or query today's log status."""
+    if check_today:
+        click.echo(str(log_module.check_today()))
+        return
+
+    if check_yesterday:
+        click.echo("true" if log_module.check_yesterday() else "false")
+        return
+
+    if do_update_streak:
+        click.echo(str(log_module.update_streak()))
+        return
+
+    if food is None:
+        raise click.ClickException(
+            "Provide a food name to log, or use --check-today / --check-yesterday / --update-streak."
+        )
+
+    if grams is None:
+        grams = config.get("default_grams", 100)
+
+    try:
+        result = search.lookup(food, grams)
+    except RateLimitError as e:
+        click.echo(format.format_error_rate_limit(e.retry_after), err=True)
+        raise SystemExit(1)
+
+    day_data = log_module.add_meal(result, food, grams)
+    totals = day_data["totals"]
+    target_kcal = day_data["target_kcal"]
+    meals_count = len(day_data["meals"])
+
+    click.echo(f"  Logged: {result['name']} ({grams:.0f}g)")
+    kcal = result.get("kcal")
+    if kcal is not None:
+        running = totals.get("kcal") or 0
+        click.echo(
+            f"  {kcal:.0f} kcal  |  Running total: {running:.0f} / {target_kcal} kcal"
+            f"  ({meals_count} meal{'s' if meals_count != 1 else ''} today)"
+        )
+
+
+# --- summary ---
+
+
+@cli.command("summary")
+@click.option("--today", "mode", flag_value="today", default=True, help="Show today's log.")
+@click.option("--yesterday", "mode", flag_value="yesterday", help="Show yesterday's log.")
+@click.option("--week", "mode", flag_value="week", help="Show current Mon–Sun week.")
+@click.option("--date", "date_str", default=None, metavar="YYYY-MM-DD", help="Show a specific date.")
+@click.option("--days", "num_days", default=None, type=int, metavar="N", help="Show last N days as sparkline.")
+def summary_cmd(mode, date_str, num_days):
+    """Show nutrition summary for today, yesterday, a week, or a date range."""
+    if date_str:
+        day_data = log_module.get_day_summary(date_str)
+        if day_data is None:
+            raise click.ClickException(f"No data logged for {date_str}.")
+        click.echo(format.daily_summary({"date": date_str, **day_data}))
+        return
+
+    if num_days is not None:
+        days_data = log_module.get_date_range_summaries(num_days)
+        target_kcal = config.get("kcal", 2000)
+        click.echo(format.trend_sparkline(days_data, target_kcal))
+        return
+
+    if mode == "week":
+        click.echo(format.week_summary(log_module.get_week_summary()))
+        return
+
+    if mode == "yesterday":
+        key = log_module.yesterday_key()
+        day_data = log_module.get_day_summary(key)
+        if day_data is None:
+            click.echo("  No meals logged yesterday.")
+            return
+        click.echo(format.daily_summary({"date": key, **day_data}, label="Yesterday"))
+        return
+
+    # default: today
+    key = log_module.today_key()
+    day_data = log_module.get_day_summary(key)
+    if day_data is None:
+        click.echo("  No meals logged today.")
+        return
+    click.echo(format.daily_summary({"date": key, **day_data}, label="Today"))
+
+
+# --- trend ---
+
+
+@cli.command("trend")
+@click.option("--days", default=7, type=int, show_default=True, help="Number of days to show.")
+def trend_cmd(days):
+    """Show calorie intake trend as ASCII sparkline."""
+    days_data = log_module.get_date_range_summaries(days)
+    target_kcal = config.get("kcal", 2000)
+    click.echo(format.trend_sparkline(days_data, target_kcal))
+
+
+# --- top-foods ---
+
+
+@cli.command("top-foods")
+@click.option("--days", default=30, type=int, show_default=True, help="Look-back window in days.")
+def top_foods_cmd(days):
+    """List the most frequently logged foods."""
+    foods = log_module.get_top_foods(days)
+    click.echo(format.top_foods_table(foods))
 
 
 if __name__ == "__main__":

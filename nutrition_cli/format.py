@@ -1,5 +1,7 @@
 """All output formatting. Returns strings — never prints directly."""
 
+from datetime import datetime
+
 
 def _val(value, unit="g", width=7) -> str:
     """Format a nutrient value, showing dash for None."""
@@ -157,3 +159,143 @@ def format_error_rate_limit(retry_after: int) -> str:
         f"  \u2192 Get a free key: https://fdc.nal.usda.gov/api-key-signup\n"
         f"  \u2192 Then run: nutrition config set --usda-key YOUR_KEY"
     )
+
+
+def trend_sparkline(days_data: list[dict], target_kcal: int) -> str:
+    """ASCII bar chart of daily calorie intake for N days."""
+    bar_width = 16
+    lines = [f"  Last {len(days_data)} days (kcal):   target: {target_kcal}"]
+
+    on_target_count = 0
+    for day in days_data:
+        try:
+            day_name = datetime.fromisoformat(day["date"]).strftime("%a")
+        except (ValueError, KeyError):
+            day_name = "???"
+
+        totals = day.get("totals") or {}
+        kcal = totals.get("kcal") or 0
+
+        pct = min(kcal / target_kcal, 1.0) if target_kcal and kcal else 0.0
+        filled = int(pct * bar_width)
+        bar = "\u2588" * filled + "\u2591" * (bar_width - filled)
+
+        arrow = ""
+        if kcal > target_kcal * 1.05:
+            arrow = " \u2191"
+        elif kcal > 0:
+            on_target_count += 1
+
+        kcal_str = str(int(kcal)) if kcal > 0 else "\u2014"
+        lines.append(f"  {day_name:3s}  {bar}  {kcal_str}{arrow}")
+
+    days_with_data = [d for d in days_data if (d.get("totals") or {}).get("kcal")]
+    if days_with_data:
+        avg = sum((d["totals"].get("kcal") or 0) for d in days_with_data) / len(days_with_data)
+        lines.append(
+            f"  Avg  {int(avg)} kcal/day \u00b7 {on_target_count}/{len(days_data)} days on target"
+        )
+
+    return "\n".join(lines)
+
+
+def daily_summary(day_data: dict, label: str | None = None) -> str:
+    """Format a single day's meal log as a readable summary."""
+    date_key = day_data.get("date", "")
+    totals = day_data.get("totals") or {}
+    meals = day_data.get("meals") or []
+    target_kcal = day_data.get("target_kcal", 2000) or 2000
+    target_protein = day_data.get("target_protein", 50) or 50
+
+    if label is None:
+        label = date_key
+
+    lines = [f"  {label}"]
+    lines.append("  " + "\u2500" * 35)
+
+    if not meals:
+        lines.append("  No meals logged.")
+        return "\n".join(lines)
+
+    for meal in meals:
+        kcal = meal.get("kcal")
+        kcal_str = f"{kcal:.0f} kcal" if kcal is not None else "\u2014"
+        lines.append(f"  {meal.get('time', '??:??')} \u00b7 {meal.get('food_name', '?')} \u00b7 {kcal_str}")
+
+    lines.append("  " + "\u2500" * 35)
+    total_kcal = totals.get("kcal") or 0
+    total_protein = totals.get("protein") or 0
+    pct = int(total_kcal / target_kcal * 100) if target_kcal else 0
+    check = "\u2713" if day_data.get("target_met") else "\u2717"
+    lines.append(f"  Total    : {total_kcal:.0f} / {target_kcal} kcal ({pct}%) {check}")
+    lines.append(f"  Protein  : {total_protein:.1f}g  (target: {target_protein}g)")
+    streak = day_data.get("streak_day")
+    if streak:
+        lines.append(f"  Streak   : {streak} days")
+
+    return "\n".join(lines)
+
+
+def week_summary(week_data: list[dict]) -> str:
+    """Format a Mon–Sun weekly report."""
+    lines = ["  Weekly Report"]
+    lines.append("  " + "\u2500" * 35)
+
+    days_with_data = [d for d in week_data if d.get("meals")]
+    if not days_with_data:
+        lines.append("  No meals logged this week.")
+        return "\n".join(lines)
+
+    target_kcal = (days_with_data[0].get("target_kcal") or 2000) if days_with_data else 2000
+    days_on_target = sum(1 for d in week_data if d.get("target_met"))
+    total_kcal_all = sum((d.get("totals") or {}).get("kcal") or 0 for d in week_data)
+    avg_kcal = total_kcal_all / len(days_with_data) if days_with_data else 0
+
+    for day in week_data:
+        try:
+            day_name = datetime.fromisoformat(day["date"]).strftime("%a %d")
+        except (ValueError, KeyError):
+            day_name = "???"
+        kcal = (day.get("totals") or {}).get("kcal") or 0
+        n_meals = len(day.get("meals") or [])
+        if n_meals > 0:
+            check = "\u2713" if day.get("target_met") else "\u2717"
+        else:
+            check = "\u2014"
+        lines.append(f"  {day_name:6s}  {kcal:>6.0f} kcal  {check}")
+
+    lines.append("  " + "\u2500" * 35)
+    lines.append(f"  Avg: {avg_kcal:.0f} kcal/day \u00b7 {days_on_target}/{len(week_data)} days on target")
+
+    best = max(days_with_data, key=lambda d: (d.get("totals") or {}).get("kcal") or 0)
+    worst = min(days_with_data, key=lambda d: (d.get("totals") or {}).get("kcal") or 0)
+    try:
+        best_name = datetime.fromisoformat(best["date"]).strftime("%a")
+        worst_name = datetime.fromisoformat(worst["date"]).strftime("%a")
+    except (ValueError, KeyError):
+        best_name = worst_name = "???"
+    best_kcal = (best.get("totals") or {}).get("kcal") or 0
+    worst_kcal = (worst.get("totals") or {}).get("kcal") or 0
+    lines.append(
+        f"  Best: {best_name} ({best_kcal:.0f} kcal) \u00b7 Worst: {worst_name} ({worst_kcal:.0f} kcal)"
+    )
+
+    streak = max((d.get("streak_day") or 0 for d in week_data), default=0)
+    if streak > 0:
+        lines.append(f"  Current streak: {streak} days")
+
+    return "\n".join(lines)
+
+
+def top_foods_table(foods: list[dict]) -> str:
+    """Format top-foods list."""
+    if not foods:
+        return "  No foods logged yet."
+
+    lines = ["  Top foods:"]
+    lines.append("  " + "\u2500" * 40)
+    for i, food in enumerate(foods, 1):
+        avg_kcal = food["total_kcal"] / food["times"] if food["times"] else 0
+        name = food["food_name"][:25]
+        lines.append(f"  {i:2d}. {name:<25}  {food['times']}x  ~{avg_kcal:.0f} kcal avg")
+    return "\n".join(lines)
