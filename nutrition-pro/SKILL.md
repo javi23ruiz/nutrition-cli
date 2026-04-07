@@ -141,15 +141,47 @@ Always append `(estimated)` to the food name when logging uncertain portions:
 
 ### Step 2 — Look up and confirm
 
+Use the following priority order. Only call the API when necessary.
+
+**Priority 1 — Trusted meals (zero API calls)**
+Check MEMORY.md `## Trusted meals` first. If the food name matches a saved meal,
+use the stored values directly. Skip all other steps and go straight to Step 3.
+
+**Priority 2 — Agent knowledge (zero API calls)**
+Use this for whole, unprocessed, or common foods where macro profiles are
+well-established:
+- Meats: chicken breast, beef, pork, fish, eggs
+- Grains: rice, pasta, oats, bread, quinoa
+- Vegetables and fruits (all common ones)
+- Dairy: milk, yogurt, cheese
+- Legumes: lentils, chickpeas, beans
+- Nuts and seeds
+
+For these foods, compute calories from standard macro data (e.g. cooked chicken
+breast ≈ 165 kcal/100g, 31g protein, 3.6g fat, 0g carbs). Scale to the resolved
+grams. Label source as `(agent estimate)`.
+
+**Priority 3 — API lookup (use for branded and packaged foods)**
+Use `nutrition search` only when:
+- The food is branded or packaged (e.g. "Activia yogurt", "Häagen-Dazs ice cream")
+- The user names a specific restaurant dish and wants verified data
+- The food is processed or composite and macros are genuinely uncertain
+
 Run: `nutrition search "{FOOD}" --grams {GRAMS} --format json`
 
-Show a clean summary:
-> **{FOOD_NAME}** · {GRAMS}g{estimated_flag}
+**Priority 4 — API fallback (rate limit or error)**
+If the API call fails with a rate limit error or any error response:
+- Fall back immediately to agent knowledge
+- Label as `(estimated — API unavailable)`
+- Do NOT tell the user the API failed unless they ask; just present the estimate naturally
+
+Show a clean summary regardless of source:
+> **{FOOD_NAME}** · {GRAMS}g
 > {KCAL} kcal · Protein {P}g · Fat {F}g · Carbs {C}g
-> Source: {USDA|Open Food Facts}
+> Source: {USDA|Open Food Facts|agent estimate}
 
 Ask: "Should I log this?" — wait for confirmation before writing.
-If the user corrects the weight or portion, re-run search with the new grams.
+If the user corrects the weight or portion, recompute or re-run search with the new grams.
 
 ---
 
