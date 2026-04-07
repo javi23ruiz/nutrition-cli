@@ -8,29 +8,19 @@ description: >
   week as it learns more. Proactive cron check-ins (morning summary, evening
   log, weekly digest) keep you consistent without nagging. Trusted meals are
   remembered forever so you never answer the same portion question twice.
-  Powered by USDA + Open Food Facts. Barcode scanning, food comparison, calorie
-  burn estimates, and macro tracking included. No app. No account. No BS — just
-  your terminal and a coach that pays attention. Triggers on: food names, meal
-  logging ("I just had X", "log my lunch"), nutrition questions ("how many
-  calories in X", "macros for Y"), diet setup ("track my calories", "help me
-  eat better"), barcode scans (8-13 digit numbers), and daily/weekly summaries.
+  Zero installation required — no CLI, no pip, no binary. Works entirely through
+  agent knowledge and memory. Triggers on: food names, meal logging ("I just had X",
+  "log my lunch"), nutrition questions ("how many calories in X", "macros for Y"),
+  diet setup ("track my calories", "help me eat better"), and daily/weekly summaries.
   Only triggers on explicit food-related messages — not on casual mentions of food in passing.
 metadata:
   clawdbot:
     emoji: "🥗"
-    requires:
-      bins: ["nutrition"]
-    install:
-      - id: pip
-        kind: pip
-        package: nutrition-cli
-        bins: ["nutrition"]
-        label: "Install nutrition-pro (pip)"
 ---
 
 # nutrition-pro
 
-Look up nutrition data for any food, log meals, track daily intake against your goals, compare foods, estimate calorie burn, and view trends — all from the command line.
+Log meals, track daily intake against your goals, look up nutrition data, estimate calorie burn, and view trends — all through conversation. No app, no CLI, no installation required.
 
 ---
 
@@ -38,20 +28,19 @@ Look up nutrition data for any food, log meals, track daily intake against your 
 
 On the very first message that triggers this skill, check if nutrition tracking is configured:
 
-Run: `nutrition config status`
+Run: `memory_get MEMORY.md`
 
-If output is "Not configured":
+If the file is empty or does not contain `## Nutrition profile`:
   Read and follow `nutrition-pro/ONBOARDING.md` exactly.
 
-If output is "Configured":
+If MEMORY.md contains a filled `## Nutrition profile`:
   Continue normally. Do not re-run onboarding.
 
 ---
 
 ## Logging meals
 
-**Triggers:** "I had X", "I ate X", "just had X", "log X", "add X to my food log",
-any food mentioned in passing.
+**Triggers:** "I had X", "I ate X", "just had X", "log X", "add X to my food log".
 
 Steps:
 
@@ -110,18 +99,12 @@ the user pick:
 Mark your guess as ← my guess based on meal context (time of day, whether it's
 a main or side). Wait for the user to confirm or correct before logging.
 
-**D. Restaurant / eating out → use branded data or meal bracket**
+**D. Restaurant / eating out → estimate from meal bracket**
 
 Detect restaurant context from phrases like: "went to", "ordered", "ate out",
 "takeaway", "delivery", "at [restaurant name]".
 
-1. Try `nutrition search "{dish or brand name}" --format json` first.
-   Open Food Facts often has branded and restaurant items.
-
-2. If found with good confidence → show result, flag as `(restaurant estimate)`,
-   ask to confirm.
-
-3. If not found or confidence is low → use meal bracket:
+Use meal bracket to estimate:
 
 | Meal type | Calorie bracket |
 |---|---|
@@ -130,26 +113,23 @@ Detect restaurant context from phrases like: "went to", "ordered", "ate out",
 | Heavy main (pizza, ribs, fried food) | 900–1,400 kcal |
 
 Present the bracket to the user:
-> "I couldn't find exact data for that restaurant dish. Based on a typical
->  [meal type], I'd estimate around [LOW]–[HIGH] kcal. Want me to log
->  [MID] kcal as an estimate? You can adjust the number."
+> "I'd estimate a typical [meal type] is around [LOW]–[HIGH] kcal. Want me to log
+>  [MID] kcal? You can adjust the number."
 
-Always append `(estimated)` to the food name when logging uncertain portions:
-`nutrition log "chicken tikka masala (estimated)" --grams 400`
+Always append `(estimated)` to the food name when logging uncertain portions.
 
 ---
 
-### Step 2 — Look up and confirm
+### Step 2 — Look up calories and confirm
 
-Use the following priority order. Only call the API when necessary.
+Use the following priority order. No external calls needed for common foods.
 
-**Priority 1 — Trusted meals (zero API calls)**
-Check MEMORY.md `## Trusted meals` first. If the food name matches a saved meal,
+**Priority 1 — Trusted meals (instant)**
+Check `## Trusted meals` in MEMORY.md first. If the food name matches a saved meal,
 use the stored values directly. Skip all other steps and go straight to Step 3.
 
-**Priority 2 — Agent knowledge (zero API calls)**
-Use this for whole, unprocessed, or common foods where macro profiles are
-well-established:
+**Priority 2 — Agent knowledge (zero external calls)**
+Use for whole, unprocessed, or common foods:
 - Meats: chicken breast, beef, pork, fish, eggs
 - Grains: rice, pasta, oats, bread, quinoa
 - Vegetables and fruits (all common ones)
@@ -157,40 +137,71 @@ well-established:
 - Legumes: lentils, chickpeas, beans
 - Nuts and seeds
 
-For these foods, compute calories from standard macro data (e.g. cooked chicken
-breast ≈ 165 kcal/100g, 31g protein, 3.6g fat, 0g carbs). Scale to the resolved
-grams. Label source as `(agent estimate)`.
+Compute calories from standard macro data scaled to the resolved grams.
+Reference values (per 100g, cooked unless noted):
 
-**Priority 3 — API lookup (use for branded and packaged foods)**
-Use `nutrition search` only when:
-- The food is branded or packaged (e.g. "Activia yogurt", "Häagen-Dazs ice cream")
-- The user names a specific restaurant dish and wants verified data
-- The food is processed or composite and macros are genuinely uncertain
+| Food | kcal | Protein | Fat | Carbs |
+|---|---|---|---|---|
+| Chicken breast | 165 | 31g | 3.6g | 0g |
+| Salmon | 208 | 20g | 13g | 0g |
+| Beef (lean) | 215 | 26g | 12g | 0g |
+| Egg (whole, raw) | 143 | 13g | 10g | 1g |
+| White rice (cooked) | 130 | 2.7g | 0.3g | 28g |
+| Brown rice (cooked) | 112 | 2.6g | 0.9g | 24g |
+| Pasta (cooked) | 158 | 5.8g | 0.9g | 31g |
+| Oats (dry) | 379 | 13g | 7g | 67g |
+| Bread (white) | 265 | 9g | 3.2g | 49g |
+| Potato (boiled) | 87 | 1.9g | 0.1g | 20g |
+| Broccoli | 34 | 2.8g | 0.4g | 7g |
+| Spinach | 23 | 2.9g | 0.4g | 3.6g |
+| Banana | 89 | 1.1g | 0.3g | 23g |
+| Apple | 52 | 0.3g | 0.2g | 14g |
+| Olive oil | 884 | 0g | 100g | 0g |
+| Whole milk | 61 | 3.2g | 3.3g | 4.8g |
+| Greek yogurt (plain) | 59 | 10g | 0.4g | 3.6g |
+| Cheddar cheese | 402 | 25g | 33g | 1.3g |
+| Almonds | 579 | 21g | 50g | 22g |
+| Lentils (cooked) | 116 | 9g | 0.4g | 20g |
 
-Run: `nutrition search "{FOOD}" --grams {GRAMS} --format json`
+For foods not in this table, use your training knowledge. Label source as `(estimated)`.
 
-**Priority 4 — API fallback (rate limit or error)**
-If the API call fails with a rate limit error or any error response:
-- Fall back immediately to agent knowledge
-- Label as `(estimated — API unavailable)`
-- Do NOT tell the user the API failed unless they ask; just present the estimate naturally
+**Priority 3 — Restaurant / processed foods**
+For genuinely ambiguous processed or restaurant dishes, use the meal bracket from
+Step 1D. Label as `(estimated)`.
 
-Show a clean summary regardless of source:
+Show a clean summary:
 > **{FOOD_NAME}** · {GRAMS}g
 > {KCAL} kcal · Protein {P}g · Fat {F}g · Carbs {C}g
-> Source: {USDA|Open Food Facts|agent estimate}
 
 Ask: "Should I log this?" — wait for confirmation before writing.
-If the user corrects the weight or portion, recompute or re-run search with the new grams.
+If the user corrects the weight or portion, recompute with the new grams.
 
 ---
 
 ### Step 3 — Log
 
-On confirmation: `nutrition log "{FOOD}" --grams {GRAMS}`
+On confirmation, append to today's daily memory note (`memory/YYYY-MM-DD.md`):
 
-For multi-food meals ("chicken, rice, and broccoli"), resolve each food's portion
-separately in one message, then log each with a single confirmation:
+```
+- {HH:MM} · {FOOD_NAME} · {GRAMS}g · {KCAL} kcal (P:{P}g F:{F}g C:{C}g)
+```
+
+Then recompute and update the running total line at the top of the file:
+```
+**Running total: {TOTAL_KCAL} kcal / {TARGET} kcal · P:{TOTAL_P}g · F:{TOTAL_F}g · C:{TOTAL_C}g**
+```
+
+If the file doesn't exist yet, create it with this header:
+```
+# {WEEKDAY}, {YYYY-MM-DD}
+
+**Running total: 0 kcal / {TARGET} kcal · P:0g · F:0g · C:0g**
+```
+
+For estimated entries, use `~` prefix: `~562 kcal`.
+
+For multi-food meals ("chicken, rice, and broccoli"), resolve all portions in one
+message, then log everything with a single confirmation:
 > "Here's what I've got:
 >  • Chicken breast (~180g): 300 kcal
 >  • Brown rice (~200g): 220 kcal
@@ -198,63 +209,111 @@ separately in one message, then log each with a single confirmation:
 >  Total: ~562 kcal · P: 58g · F: 8g · C: 45g
 >  Log all three?"
 
+After logging: confirm with one line and show progress toward today's target.
+
 ---
 
-### Step 4 — Write to daily memory note
+### Step 4 — Update streak
 
-Append one line to today's daily memory note (memory/YYYY-MM-DD.md):
-```
-- {TIME} · {FOOD_NAME}{estimated_flag} · {KCAL} kcal (P:{P}g F:{F}g C:{C}g)
-```
-Then update running total:
-```
-**Running total: {TOTAL_KCAL} / {TARGET} kcal**
-```
+After logging any meal, read `## Nutrition profile` in MEMORY.md and check the
+`Current streak` value.
 
-For estimated entries, use `~` prefix on calories: `~562 kcal`
+- If a meal was already logged today (other entries exist in today's note): streak unchanged.
+- If this is the first meal of the day: increment streak by 1 and update MEMORY.md.
+- If yesterday's memory/YYYY-MM-DD.md has no entries and today is not covered by a
+  lifecycle event: reset streak to 1.
 
-This write is mandatory — it's what makes "what have I eaten today?" instant.
+Update `Current streak` in MEMORY.md. If the new streak exceeds `Longest streak`, update
+that too. Acknowledge milestones naturally (7, 14, 30, 60, 100 days).
 
 ---
 
 ### Step 5 — Check for patterns (see Learning section below)
 
-**Memory note:** Only write nutrition data to MEMORY.md and memory/ files in private/DM
-sessions. In group contexts, skip the memory write step and log only to log.json.
-
 ---
 
-## Answering questions without API calls
+## Answering questions without external calls
 
 Use the cheapest source that can answer the question. Check in order:
 
-### 1. Already in context (no tool call needed)
-- "How many calories today?" / "What did I eat today?" / "What did I have for lunch?"
-  → Read today's memory/YYYY-MM-DD.md — running total and all meals are already there
-- "What's my target?" / "Am I on track today?"
-  → Read MEMORY.md nutrition profile, compute from daily note total vs target
-- "How many meals today?"
-  → Run: `nutrition log --check-today`
+### 1. Today's daily note (instant)
+- "How many calories today?" / "What did I eat today?"
+  → Read `memory/{TODAY}.md` — running total and all meals are there
+- "What's my target?" / "Am I on track?"
+  → Read `## Nutrition profile` in MEMORY.md, compare to running total
+- "What did I have for lunch?" / "Did I log breakfast?"
+  → Read today's daily note and look at the times
 
-### 2. Semantic / fuzzy recall (memory_search, no CLI call)
-- "What did I eat last Tuesday?" / "What did I have on [specific date]?"
-  → Search memory/YYYY-MM-DD.md for that date and read it directly
-- "That pasta dish I made last month" / "The meal I had after the gym"
-  → Run: `memory_search "{phrase}"` across memory/ daily notes — do NOT call the CLI
+### 2. Past daily notes (memory reads)
+- "What did I eat last Tuesday?" / "What did I have on April 3rd?"
+  → Read `memory/YYYY-MM-DD.md` for that date directly
+- "How have I been doing this week?"
+  → Read each day's note from Monday to today, sum totals
 
-### 3. Structured math or trends (CLI reads log.json)
-- "Average calories last 30 days" → `nutrition summary --days 30`
-- "What's my protein been like this week?" → `nutrition summary --week`
-- "Show me my trend" → `nutrition trend --days 14`
-- "How many times have I had chicken?" → `nutrition top-foods --days 90`
-- Historical date query → `nutrition summary --date YYYY-MM-DD`
-- Weekly report → `nutrition summary --week`
+### 3. Computed summaries (read multiple notes)
+- "Average calories last 30 days"
+  → Read the last 30 daily notes, sum kcal, divide
+- "What's my protein been like this week?"
+  → Read Mon–today notes, extract P totals
+- "How many times have I had chicken?"
+  → Search daily notes for "chicken" entries
 
-### 4. New data only (USDA API call via CLI)
-- Food lookup → `nutrition search "{FOOD}" --grams {GRAMS} --format json`
-- Barcode → `nutrition barcode {CODE}`
+### 4. Agent knowledge (no external calls)
+- "How many calories in 200g salmon?" → compute from macro table above
+- "How many calories does running burn?" → MET calculation (see below)
+- "What should my daily intake be?" → Harris-Benedict TDEE (see below)
+- "Compare chicken vs tofu" → compute both from macro table
 
-Never jump to step 3 or 4 if step 1 or 2 can answer it.
+---
+
+## Calorie burn estimates
+
+Use MET (Metabolic Equivalent of Task) values. Formula:
+`kcal = MET × weight_kg × duration_hours`
+
+If weight unknown, use 70kg as default and note the assumption.
+
+| Activity | MET |
+|---|---|
+| Running (moderate, ~8 km/h) | 8.0 |
+| Running (fast, ~12 km/h) | 11.5 |
+| Jogging | 7.0 |
+| Cycling (moderate) | 6.8 |
+| Cycling (vigorous) | 10.0 |
+| Walking (5 km/h) | 3.5 |
+| Swimming | 6.0 |
+| Hiking | 5.3 |
+| Weightlifting | 3.5 |
+| Yoga | 2.5 |
+| HIIT | 8.0 |
+| Tennis | 7.3 |
+| Basketball | 6.5 |
+| Soccer | 7.0 |
+| Elliptical | 5.0 |
+| Jump rope | 10.0 |
+
+Example: "I went running for 30 minutes, I weigh 75kg"
+→ 8.0 × 75 × 0.5 = 300 kcal burned
+
+---
+
+## Daily intake targets (Harris-Benedict TDEE)
+
+BMR formulas:
+- Male: 88.36 + (13.4 × weight_kg) + (4.8 × height_cm) − (5.7 × age)
+- Female: 447.6 + (9.25 × weight_kg) + (3.1 × height_cm) − (4.3 × age)
+
+Activity multipliers:
+| Level | Multiplier |
+|---|---|
+| Sedentary (desk job, no exercise) | 1.2 |
+| Light (1–3 days/week exercise) | 1.375 |
+| Moderate (3–5 days/week) | 1.55 |
+| Active (6–7 days/week hard exercise) | 1.725 |
+| Very active (athlete, physical job) | 1.9 |
+
+TDEE = BMR × multiplier. Round to nearest 50 kcal.
+Protein suggestion: 0.8g/kg maintenance, 1.6–2.2g/kg muscle building.
 
 ---
 
@@ -291,7 +350,7 @@ and feedback without the user having to re-explain themselves.
 ---
 
 ### Goal narrative
-Trigger: onboarding step 2, or any time the user says why they're tracking
+Trigger: onboarding question 1, or any time the user says why they're tracking
 ("I want to lose X", "I'm trying to build muscle", "my doctor told me to", etc.)
 
 Action: write one sentence in their words (not a paraphrase) to
@@ -314,7 +373,7 @@ Action: add a row to the `## Trusted meals` table in MEMORY.md:
 
 When a meal is in the trusted meals table:
 - Skip the portion-guessing flow entirely
-- Skip the search + confirm step
+- Skip the lookup step
 - Log immediately and say:
   > "{MEAL_NAME} — logged {GRAMS} like usual. {KCAL} kcal."
 - Update the `Times logged` count in the table after each log
@@ -382,7 +441,6 @@ Do NOT comment on individual days being over — only surface multi-week pattern
 
 ### Health context
 Trigger: user mentions health conditions, fitness goals, or medications
-("I'm trying to lose weight", "I have diabetes", "I'm training for a marathon")
 
 Action: append to `## Health context` in MEMORY.md:
   `- {HEALTH_NOTE} (mentioned {DATE})`
@@ -394,10 +452,8 @@ managing a medical condition.
 ---
 
 ### Lifecycle events
-Trigger: user mentions upcoming or current travel, illness, holidays, special
-events, or any temporary change in routine.
-("I'm traveling next week", "I'm sick", "it's my birthday weekend",
-"I have a wedding coming up", "work trip")
+Trigger: user mentions upcoming or current travel, illness, holidays, or any
+temporary change in routine.
 
 Action: append to `## Lifecycle events` in MEMORY.md:
   `- {EVENT}: {DATE_OR_RANGE} ({CONTEXT_NOTE})`
@@ -407,18 +463,6 @@ During active lifecycle events:
 - Do not break streaks for illness days (mark as `[sick - excluded]` in daily note)
 - Adjust restaurant meal expectations for travel days
 - After event ends: resume normal tracking without comment
-
----
-
-### Streak tracking
-Trigger: every time a meal is logged
-
-Action: Run: `nutrition log --update-streak`
-
-Trigger: user misses a full day (no meals by 10pm)
-
-Action: check `## Lifecycle events` first — if an active event covers today,
-do not reset streak. Otherwise reset next morning. Do not mention it unless asked.
 
 ---
 
@@ -474,10 +518,9 @@ openclaw cron add \
   --cron "{M} {H} * * *" \
   --tz "{TIMEZONE}" \
   --session nutrition-tracker \
-  --message "Run: nutrition summary --yesterday and present it clearly. \
-    Compare totals to target from MEMORY.md. \
-    If they hit their calorie goal yesterday, say so specifically. \
-    If they're on a streak of 3+ days, mention it." \
+  --message "Read MEMORY.md and yesterday's memory/YYYY-MM-DD.md daily note. \
+    Present a morning summary: yesterday's total vs target, current streak, one insight. \
+    Frame it through their goal narrative. Keep it to 3-4 lines." \
   --announce
 ```
 
@@ -491,24 +534,24 @@ openclaw cron add \
   --tz "{TIMEZONE}" \
   --session nutrition-tracker \
   --system-event "Evening nutrition check-in. Ask the user what they ate today. \
-    For each food they mention, run: nutrition search '{food}' to get calories, \
-    confirm with user, then run: nutrition log '{food}'. \
-    After all meals logged, run: nutrition summary --today and show the result." \
+    For each food they mention, resolve the portion, compute calories from agent \
+    knowledge, confirm, then append to today's memory/YYYY-MM-DD.md. \
+    After all meals logged, read the file and show today's running total." \
   --wake now
 ```
 
 **Sunday synthesis (recommended — user must confirm):**
-Offer this during onboarding. If the user agrees, create it then. Do not create it unilaterally.
+Offer this during onboarding. If the user agrees, create it. Do not create it unilaterally.
 ```
 openclaw cron add \
   --name "nutrition-synthesis" \
   --cron "0 21 * * 0" \
   --tz "{TIMEZONE}" \
   --session nutrition-tracker \
-  --message "Run nutrition summary --week and read the past 4 weeks of memory/ daily notes. \
-    Then: 1) Rewrite the 'Who you are' section in MEMORY.md with a 3-5 sentence \
-    synthesized paragraph. 2) Rewrite the 'Patterns' section with 4-7 bullets from \
-    observed data. This is a background maintenance run — do not send the user a message. \
+  --message "Read MEMORY.md and the past 4 weeks of memory/ daily notes. \
+    1) Rewrite the 'Who you are' section in MEMORY.md with a 3-5 sentence synthesized paragraph. \
+    2) Rewrite the 'Patterns' section with 4-7 bullets from observed data. \
+    This is a background maintenance run — do not send the user a message. \
     Prepare one pattern insight to surface in Monday morning's report." \
   --announce
 ```
@@ -522,142 +565,14 @@ openclaw cron add \
   --cron "{M} {H} * * 1" \
   --tz "{TIMEZONE}" \
   --session nutrition-tracker \
-  --message "Read MEMORY.md. Run: nutrition summary --week and nutrition top-foods --days 7. \
-    Present a weekly report framed through the user's goal narrative: average daily calories, \
-    best day, worst day, protein compliance, current streak. \
-    Surface one pattern insight from the Sunday synthesis. \
-    Keep it short — 5-8 lines max, no bullet-point overload." \
+  --message "Read MEMORY.md and each daily note from the past 7 days. \
+    Present a weekly report framed through the user's goal narrative: \
+    average daily calories, best day, worst day, protein compliance, current streak. \
+    Surface one pattern insight from the Sunday synthesis if available. \
+    Keep it short — 5-8 lines max." \
   --announce
 ```
 
 After setup: confirm which jobs were created and when they'll fire next.
 To view: `openclaw cron list`
 To disable a specific job: `openclaw cron disable nutrition-evening` (or -morning, -weekly)
-
----
-
-## Commands reference
-
-### Search for a food
-
-**When to use:** User asks about nutrition info, calories, macros for a specific food.
-
-```bash
-nutrition search "chicken breast" --grams 200
-nutrition search "brown rice" --grams 150 --format json
-nutrition search "avocado" --rda --sex female --age 25
-```
-
-- `--grams` (default 100): serving size
-- `--format summary|json`: `json` when processing programmatically
-- `--rda`: show percentage of daily recommended intake
-- `--sex male|female` and `--age`: adjust RDA targets
-
-### Look up by barcode
-
-**When to use:** User provides a barcode (8-13 digits) or wants to scan a product.
-
-```bash
-nutrition barcode 3017624010701
-nutrition barcode 5000159459228 --grams 50
-```
-
-Returns Nutri-Score, NOVA group, allergens, and vegan/vegetarian status.
-
-### Log a meal
-
-**When to use:** User confirms logging a food after seeing search results.
-
-```bash
-nutrition log "chicken breast" --grams 200
-nutrition log --check-today          # returns meal count (integer)
-nutrition log --update-streak        # updates and returns streak
-nutrition log --check-yesterday      # returns true/false
-```
-
-### View summary
-
-**When to use:** User asks what they've eaten, daily totals, or trends.
-
-```bash
-nutrition summary                    # today
-nutrition summary --yesterday
-nutrition summary --week
-nutrition summary --date 2026-04-01
-nutrition summary --days 14
-```
-
-### View trends
-
-**When to use:** User asks about their progress over time.
-
-```bash
-nutrition trend --days 7
-nutrition top-foods --days 30
-```
-
-### Compare foods
-
-**When to use:** User wants to compare nutrients side by side.
-
-```bash
-nutrition compare "chicken breast" "tofu" "salmon"
-nutrition compare "white rice" "brown rice" --grams 200
-```
-
-### Calculate meal nutrition
-
-**When to use:** User describes a multi-food meal.
-
-```bash
-nutrition meal "200g chicken breast" "150g brown rice" "1 avocado"
-nutrition meal "200g chicken" "100g rice" --rda --sex female
-```
-
-### Estimate calorie burn
-
-**When to use:** User asks how many calories an activity burns.
-
-```bash
-nutrition burn running 30
-nutrition burn cycling 45 --weight 80
-```
-
-Activities: running, jogging, cycling, walking, swimming, hiking, rowing, jump rope,
-dancing, yoga, pilates, weightlifting, climbing, tennis, basketball, soccer,
-volleyball, skiing, skateboarding, elliptical
-
-### Daily targets
-
-**When to use:** User asks what their daily intake should be.
-
-```bash
-nutrition daily --sex female --age 25 --weight 60 --height 165 --activity moderate
-```
-
-### Configuration
-
-```bash
-nutrition config set --kcal 2000 --protein 150
-nutrition config set --usda-key YOUR_KEY
-nutrition config set --default-grams 150
-nutrition config set --timezone America/New_York --start-date 2026-04-01
-nutrition config status              # returns "Configured" or "Not configured"
-nutrition config show                # full profile display
-```
-
----
-
-## Rate limit handling
-
-When you see a rate limit error from the CLI, surface it to the user exactly as printed —
-do not paraphrase or retry silently. The error contains the URL and steps needed.
-
-Also append to today's daily note: `- [RATE LIMIT HIT - {TIME}]`
-
----
-
-## Data source transparency
-
-Always mention whether data came from **USDA** or **Open Food Facts** when presenting
-results. The source is in the `summary` output and the `source` field of `json` output.

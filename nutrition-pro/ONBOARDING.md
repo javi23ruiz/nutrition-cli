@@ -1,14 +1,14 @@
-# Nutrition CLI onboarding script
+# Nutrition-pro onboarding script
 
 Follow these steps exactly. Do not skip any. Do not ask all questions at once.
 
 ## Step 1 — Check if already set up
 
-Run: `nutrition config status`
+Run: `memory_get MEMORY.md`
 
-If output contains "Configured":
+If MEMORY.md contains a filled `## Nutrition profile` section:
   Say: "You're already set up! Here's your current profile:"
-  Run: `nutrition config show` and display it.
+  Read and display the `## Who you are`, `## Goal narrative`, and `## Nutrition profile` sections.
   Ask if they want to update anything. Stop here.
 
 ## Step 2 — Explain what we're setting up (one sentence)
@@ -23,11 +23,11 @@ more aware of what I eat') — in your own words."
   - Write their exact answer (not a paraphrase) to `## Goal narrative` in MEMORY.md
   - This is the most important question — it shapes every summary and suggestion
 
-Question 2: "What's your daily calorie goal? (If unsure, I can estimate it for you — just tell me
+Question 2: "What's your daily calorie goal? (If unsure, I can estimate it — just tell me
 your weight, height, age, and activity level.)"
   - If they give a number: use it directly
-  - If they ask for an estimate: run `nutrition daily --weight W --height H --age A --activity LEVEL`
-    Show the result and confirm before using
+  - If they ask for an estimate: use the Harris-Benedict TDEE formula from SKILL.md.
+    Show the result and confirm before using.
 
 Question 3: "Daily protein goal in grams? (Common targets: 0.8g × body weight in kg for
 maintenance, 1.6–2.2g × kg for muscle building)"
@@ -41,10 +41,8 @@ Question 5: "What time do you usually have breakfast, lunch, and dinner?
 ## Step 4 — Write to MEMORY.md
 
 Take the answers and write the full profile to MEMORY.md.
-Read the template from `nutrition-pro/MEMORY_TEMPLATE.md`, fill in all known values, then:
-  - Run: `memory_get MEMORY.md` to read current contents
-  - Append the filled template as a new section. Do NOT overwrite existing content.
-  - Run: `nutrition config set --kcal TARGET --protein PROTEIN_G --timezone $(date +%Z) --start-date $(date +%Y-%m-%d)`
+Read the template from `nutrition-pro/MEMORY_TEMPLATE.md`, fill in all known values, then
+append the filled template as a new section. Do NOT overwrite existing content.
 
 For `## Who you are`: write a first-pass paragraph using what you know so far.
 It will be rewritten after the first week of real data. Example first-pass:
