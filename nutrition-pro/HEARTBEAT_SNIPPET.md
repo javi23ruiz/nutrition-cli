@@ -1,4 +1,4 @@
-## Nutrition check (nutrition-cli)
+## Nutrition check (nutrition-pro)
 - Run: `nutrition log --check-today` to get today's meal count
 - If breakfast window (08:00–09:30) and meals_today == 0: ask "What did you have for breakfast?"
 - If lunch window (12:30–14:00) and meals_today < 2: ask "What did you have for lunch?"

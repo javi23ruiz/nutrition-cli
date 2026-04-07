@@ -1,5 +1,5 @@
 ## Nutrition profile
-<!-- nutrition-cli managed section — do not edit manually -->
+<!-- nutrition-pro managed section — do not edit manually -->
 - Daily calorie target: {KCAL_TARGET} kcal
 - Protein goal: {PROTEIN_G}g/day
 - Fat limit: {FAT_G}g/day (optional)

@@ -1,5 +1,5 @@
 ---
-name: nutrition-cli
+name: nutrition-pro
 description: >
   Use this skill for anything related to food, nutrition, calories, macros,
   protein, fat, carbohydrates, fiber, vitamins, meal tracking, diet goals,
@@ -19,10 +19,10 @@ metadata:
         kind: pip
         package: nutrition-cli
         bins: ["nutrition"]
-        label: "Install nutrition-cli (pip)"
+        label: "Install nutrition-pro (pip)"
 ---
 
-# nutrition-cli
+# nutrition-pro
 
 Look up nutrition data for any food, log meals, track daily intake against your goals, compare foods, estimate calorie burn, and view trends — all from the command line.
 
@@ -35,7 +35,7 @@ On the very first message that triggers this skill, check if nutrition tracking 
 Run: `nutrition config status`
 
 If output is "Not configured":
-  Read and follow `skill/ONBOARDING.md` exactly.
+  Read and follow `nutrition-pro/ONBOARDING.md` exactly.
 
 If output is "Configured":
   Continue normally. Do not re-run onboarding.

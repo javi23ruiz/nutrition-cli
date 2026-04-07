@@ -35,16 +35,16 @@ Question 4: "What time do you usually have breakfast, lunch, and dinner?
 ## Step 4 — Write to MEMORY.md
 
 Take the answers and write the nutrition profile block to MEMORY.md.
-Read the template from `skill/MEMORY_TEMPLATE.md`, fill in the values, then:
+Read the template from `nutrition-pro/MEMORY_TEMPLATE.md`, fill in the values, then:
   - Run: `memory_get MEMORY.md` to read current contents
   - Append the filled template as a new section. Do NOT overwrite existing content.
   - Run: `nutrition config set --kcal TARGET --protein PROTEIN_G --timezone $(date +%Z) --start-date $(date +%Y-%m-%d)`
 
 ## Step 5 — Set up heartbeat integration
 
-Read `skill/HEARTBEAT_SNIPPET.md`.
+Read `nutrition-pro/HEARTBEAT_SNIPPET.md`.
 Run: `memory_get HEARTBEAT.md` to check current contents.
-If "nutrition-cli" is not already present: append the snippet to HEARTBEAT.md.
+If "nutrition-pro" is not already present: append the snippet to HEARTBEAT.md.
 
 ## Step 6 — Offer cron jobs
 
