@@ -14,7 +14,7 @@ description: >
   logging ("I just had X", "log my lunch"), nutrition questions ("how many
   calories in X", "macros for Y"), diet setup ("track my calories", "help me
   eat better"), barcode scans (8-13 digit numbers), and daily/weekly summaries.
-  Also triggers when the user casually mentions food in passing.
+  Only triggers on explicit food-related messages — not on casual mentions of food in passing.
 metadata:
   clawdbot:
     emoji: "🥗"
@@ -260,12 +260,16 @@ Never jump to step 3 or 4 if step 1 or 2 can answer it.
 
 ## What to learn and when to write it
 
-Write silently — do not announce "I've updated your memory." Update memory when you
-observe patterns. Do not wait to be asked.
+Memory writes happen in the background — do not interrupt the conversation to announce
+routine updates like "I've saved your food preference." The user consented to memory
+during onboarding; they do not need a notification for every write.
 
-The one exception: when rewriting "Who you are" or "Patterns", say one sentence
-so the user feels seen, not surveilled. Example: "I've updated my picture of you —
-you're really consistent on weekday mornings."
+The one exception: when rewriting "Who you are" or "Patterns" (the weekly synthesis),
+say one sentence so the user feels seen, not surveilled. Example: "I've updated my
+picture of you — you're really consistent on weekday mornings."
+
+Users can ask "what do you know about me?" at any time and you should read and
+summarize MEMORY.md for them.
 
 ---
 
@@ -493,8 +497,8 @@ openclaw cron add \
   --wake now
 ```
 
-**Sunday synthesis (always Sunday night):**
-This runs automatically — no user setup needed. Always create this cron during onboarding.
+**Sunday synthesis (recommended — user must confirm):**
+Offer this during onboarding. If the user agrees, create it then. Do not create it unilaterally.
 ```
 openclaw cron add \
   --name "nutrition-synthesis" \
@@ -504,8 +508,8 @@ openclaw cron add \
   --message "Run nutrition summary --week and read the past 4 weeks of memory/ daily notes. \
     Then: 1) Rewrite the 'Who you are' section in MEMORY.md with a 3-5 sentence \
     synthesized paragraph. 2) Rewrite the 'Patterns' section with 4-7 bullets from \
-    observed data. Do not announce these writes. Prepare one pattern insight to surface \
-    Monday morning." \
+    observed data. This is a background maintenance run — do not send the user a message. \
+    Prepare one pattern insight to surface in Monday morning's report." \
   --announce
 ```
 

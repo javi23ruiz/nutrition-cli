@@ -53,25 +53,11 @@ Calorie target is {KCAL} kcal/day with {PROTEIN}g protein. {DIET_NOTE}"
 
 Leave `## Trusted meals` and `## Patterns` empty — they fill in over time.
 
-## Step 5 — Set up heartbeat integration and Sunday synthesis
+## Step 5 — Set up heartbeat integration
 
 Read `nutrition-pro/HEARTBEAT_SNIPPET.md`.
 Run: `memory_get HEARTBEAT.md` to check current contents.
 If "nutrition-pro" is not already present: append the snippet to HEARTBEAT.md.
-
-Then create the Sunday synthesis cron (always — no user confirmation needed):
-```
-openclaw cron add \
-  --name "nutrition-synthesis" \
-  --cron "0 21 * * 0" \
-  --tz "{TIMEZONE}" \
-  --session nutrition-tracker \
-  --message "Run nutrition summary --week and read the past 4 weeks of memory/ daily notes. \
-    Then: 1) Rewrite the 'Who you are' section in MEMORY.md with a 3-5 sentence synthesized \
-    paragraph. 2) Rewrite the 'Patterns' section with 4-7 bullets from observed data. \
-    Do not announce these writes. Prepare one pattern insight to surface Monday morning." \
-  --announce
-```
 
 ## Step 6 — Offer cron jobs
 
@@ -81,9 +67,11 @@ Here's what's available:
   • Morning summary — shows yesterday's totals and starts your day
   • Evening check-in — asks what you ate, logs it, shows today's summary
   • Weekly report — every Monday, a full week breakdown
+  • Sunday synthesis — runs quietly every Sunday night and rewrites your profile
+    and pattern summary so I know you better over time (recommended)
 
 You can pick any combination. Which ones do you want? (e.g. 'just the evening one',
-'morning and evening', 'all three', or 'none')"
+'morning and evening', 'all three + synthesis', or 'none')"
 
 Collect their choices, then for each chosen reminder ask what time they want it.
 Ask times one at a time, only for the reminders they selected:
@@ -95,6 +83,7 @@ Parse each time into 24h hour and minute for the cron expression (e.g. "8:30am" 
 
 Then follow the "Setting up proactive reminders" section in SKILL.md, running only the
 cron commands for the reminders the user selected, substituting their chosen times.
+If the user selected Sunday synthesis, run that cron command too.
 
 If none: say "No problem. You can always ask me to set them up later by saying
 'set up nutrition reminders'."
