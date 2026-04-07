@@ -13,38 +13,65 @@ If output contains "Configured":
 
 ## Step 2 — Explain what we're setting up (one sentence)
 
-Say: "I'll set up daily calorie tracking. I need 4 quick answers."
+Say: "I'll set up daily nutrition tracking. I need 5 quick things from you."
 
 ## Step 3 — Ask one question at a time, wait for answer before next
 
-Question 1: "What's your daily calorie goal? (If unsure, I can estimate it for you — just tell me
+Question 1: "What's the one thing you're trying to achieve with food right now?
+(e.g. 'lose weight before summer', 'build muscle', 'eat more protein', 'just be
+more aware of what I eat') — in your own words."
+  - Write their exact answer (not a paraphrase) to `## Goal narrative` in MEMORY.md
+  - This is the most important question — it shapes every summary and suggestion
+
+Question 2: "What's your daily calorie goal? (If unsure, I can estimate it for you — just tell me
 your weight, height, age, and activity level.)"
   - If they give a number: use it directly
   - If they ask for an estimate: run `nutrition daily --weight W --height H --age A --activity LEVEL`
     Show the result and confirm before using
 
-Question 2: "Daily protein goal in grams? (Common targets: 0.8g × body weight in kg for
+Question 3: "Daily protein goal in grams? (Common targets: 0.8g × body weight in kg for
 maintenance, 1.6–2.2g × kg for muscle building)"
 
-Question 3: "Any dietary restrictions or food allergies I should know about?
+Question 4: "Any dietary restrictions or food allergies I should know about?
 (e.g. gluten-free, dairy-free, nut allergy, vegan)"
 
-Question 4: "What time do you usually have breakfast, lunch, and dinner?
+Question 5: "What time do you usually have breakfast, lunch, and dinner?
 (e.g. 8am, 1pm, 8pm)"
 
 ## Step 4 — Write to MEMORY.md
 
-Take the answers and write the nutrition profile block to MEMORY.md.
-Read the template from `nutrition-pro/MEMORY_TEMPLATE.md`, fill in the values, then:
+Take the answers and write the full profile to MEMORY.md.
+Read the template from `nutrition-pro/MEMORY_TEMPLATE.md`, fill in all known values, then:
   - Run: `memory_get MEMORY.md` to read current contents
   - Append the filled template as a new section. Do NOT overwrite existing content.
   - Run: `nutrition config set --kcal TARGET --protein PROTEIN_G --timezone $(date +%Z) --start-date $(date +%Y-%m-%d)`
 
-## Step 5 — Set up heartbeat integration
+For `## Who you are`: write a first-pass paragraph using what you know so far.
+It will be rewritten after the first week of real data. Example first-pass:
+"You're just getting started with nutrition tracking. Your goal: {GOAL_NARRATIVE}.
+Calorie target is {KCAL} kcal/day with {PROTEIN}g protein. {DIET_NOTE}"
+
+Leave `## Trusted meals` and `## Patterns` empty — they fill in over time.
+
+## Step 5 — Set up heartbeat integration and Sunday synthesis
 
 Read `nutrition-pro/HEARTBEAT_SNIPPET.md`.
 Run: `memory_get HEARTBEAT.md` to check current contents.
 If "nutrition-pro" is not already present: append the snippet to HEARTBEAT.md.
+
+Then create the Sunday synthesis cron (always — no user confirmation needed):
+```
+openclaw cron add \
+  --name "nutrition-synthesis" \
+  --cron "0 21 * * 0" \
+  --tz "{TIMEZONE}" \
+  --session nutrition-tracker \
+  --message "Run nutrition summary --week and read the past 4 weeks of memory/ daily notes. \
+    Then: 1) Rewrite the 'Who you are' section in MEMORY.md with a 3-5 sentence synthesized \
+    paragraph. 2) Rewrite the 'Patterns' section with 4-7 bullets from observed data. \
+    Do not announce these writes. Prepare one pattern insight to surface Monday morning." \
+  --announce
+```
 
 ## Step 6 — Offer cron jobs
 
