@@ -85,10 +85,13 @@ def config_show():
     click.echo("  Nutrition profile")
     click.echo("  " + "\u2500" * 35)
     click.echo(f"  Daily calories : {data.get('kcal')} kcal")
-    click.echo(f"  Protein goal   : {data.get('protein', '\u2014')}g/day")
+    protein = data.get('protein', '\u2014')
+    timezone = data.get('timezone', '\u2014')
+    start_date = data.get('start_date', '\u2014')
+    click.echo(f"  Protein goal   : {protein}g/day")
     click.echo(f"  Default grams  : {data.get('default_grams', 100)}g")
-    click.echo(f"  Timezone       : {data.get('timezone', '\u2014')}")
-    click.echo(f"  Tracking since : {data.get('start_date', '\u2014')}")
+    click.echo(f"  Timezone       : {timezone}")
+    click.echo(f"  Tracking since : {start_date}")
     click.echo(f"  USDA key       : {'configured' if data.get('usda_key') else 'using DEMO_KEY'}")
 
 
